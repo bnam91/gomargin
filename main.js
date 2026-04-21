@@ -1,8 +1,10 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import { lookupCommissionRate } from './commissionRates.js'
 import { loadCategoryTree, resolveCategoryPath } from './categoryTree.js'
+import ReleaseUpdater from './submodules/module_update_auto/release_updater.js'
+import updateConfig from './submodules/module_update_auto/config.js'
 
 // ESM에서 __dirname 폴리필 (__dirname은 CJS 전용, ESM에서 직접 사용 불가)
 const __filename = fileURLToPath(import.meta.url)
@@ -23,6 +25,44 @@ function createMainWindow() {
   })
   mainWindow.loadFile('index.html')
   return mainWindow
+}
+
+// ── 자동 업데이트 ──
+
+async function checkForUpdates(mainWindow) {
+  try {
+    const updater = new ReleaseUpdater('bnam91', 'gomargin', updateConfig.versionFile)
+    const current = updater.getCurrentVersion()
+    const latest = await updater.getLatestRelease()
+    if (!latest || current === latest.tag_name) return
+
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: '업데이트 알림',
+      message: `새 버전이 있습니다: ${latest.tag_name}`,
+      detail: `현재: ${current ?? '없음'}\n\n업데이트 후 앱을 재시작하세요.`,
+      buttons: ['지금 업데이트', '나중에'],
+      defaultId: 0,
+    })
+
+    if (response === 0) {
+      await updater.performUpdate(latest)
+      const { response: restartRes } = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: '업데이트 완료',
+        message: `${latest.tag_name} 업데이트가 완료됐습니다.`,
+        detail: '지금 앱을 재시작할까요?',
+        buttons: ['지금 재시작', '나중에'],
+        defaultId: 0,
+      })
+      if (restartRes === 0) {
+        app.relaunch()
+        app.exit(0)
+      }
+    }
+  } catch (e) {
+    console.error('업데이트 체크 오류:', e.message)
+  }
 }
 
 // ── 쿠팡 Wing 로그인 윈도우 ──
@@ -255,7 +295,8 @@ ipcMain.handle('window-zoom', (_, factor) => {
 // ── 앱 초기화 ──
 
 app.whenReady().then(() => {
-  createMainWindow()
+  const win = createMainWindow()
+  checkForUpdates(win)
 
   // darwin: 독 클릭 시 창 복원
   app.on('activate', () => {
