@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고야 마진 계산기</title>
+  <!-- 테마 조기 적용 — CSS 로드 전에 data-theme 심어서 FOUC 방지 -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('gomargin-theme') || 'light';
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      } catch (e) {
+        // localStorage 차단 시에도 라이트가 기본
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       TITLEBAR
+       ============================================================ -->
+  <div id="titlebar">
+    <span id="titlebar-title"><span class="titlebar-logo">🚀</span> 고야 마진 계산기</span>
+    <div id="titlebar-right">
+      <select id="zoom-select" title="화면 배율">
+        <option value="100" selected>100%</option>
+        <option value="125">125%</option>
+        <option value="150">150%</option>
+        <option value="175">175%</option>
+        <option value="200">200%</option>
+      </select>
+      <button id="theme-toggle" title="테마 전환 (라이트/다크)" aria-label="테마 전환">
+        <span class="icon-moon">🌙</span><span class="icon-sun">☀️</span>
+      </button>
+      <button class="titlebar-btn minimize" id="btn-minimize" title="최소화">&#8212;</button>
+      <button class="titlebar-btn maximize" id="btn-maximize" title="최대화">&#9634;</button>
+      <button class="titlebar-btn close" id="btn-close" title="닫기">&#10005;</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <div id="main-content">
+
+    <h1 class="page-title"><span class="page-logo">🚀</span> 고야 마진 계산기</h1>
+    <p class="page-subtitle">URL, 원가, 사이즈만 넣으면 부가세 10%/수수료/입출고배송비 반영해 '최종 마진'을 계산합니다.</p>
+
+    <!-- ==================== INPUT CARD ==================== -->
+    <div class="card" id="input-card">
+
+      <!-- 행1: 상품 URL -->
+      <div class="input-row url-row">
+        <span class="row-label">상품 URL</span>
+        <input
+          id="input-url"
+          class="url-input"
+          type="text"
+          placeholder="쿠팡 상품 URL 붙여넣기 (itemId, vendorItemId가 들어가야 됩니다.)"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn btn-login" id="btn-coupang-login">쿠팡 로그인</button>
+      </div>
+
+      <!-- 행2: 원가 / 기타비용 -->
+      <div class="input-row cost-row">
+        <span class="row-label">원가</span>
+        <input id="input-cost" type="number" placeholder="원가 (원, 숫자만)" min="0" step="1" />
+        <input id="input-extra-cost" type="number" placeholder="기타비용 (원, 숫자만)" min="0" step="1" />
+      </div>
+
+      <!-- 행3: 가로/세로/높이/무게 + 체크박스 -->
+      <div class="input-row dim-row">
+        <span class="row-label">가로/세로/높이/무게</span>
+        <input id="input-width"  type="number" placeholder="가로(cm)"  min="0" step="0.1" />
+        <input id="input-depth"  type="number" placeholder="세로(cm)"  min="0" step="0.1" />
+        <input id="input-height" type="number" placeholder="높이(cm)"  min="0" step="0.1" />
+        <input id="input-weight" type="number" placeholder="무게(kg)"  min="0" step="0.01" />
+        <div class="checkbox-group">
+          <input type="checkbox" id="chk-auto-size" checked />
+          <label for="chk-auto-size">사이즈 자동 적용(가로·세로·높이·무게)</label>
+        </div>
+      </div>
+
+      <!-- 행4: 사이즈 유형 + 사이즈표 보기 + 계산하기 -->
+      <div class="input-row size-row">
+        <span class="row-label">사이즈 유형</span>
+        <select id="select-size-type">
+          <option value="극소형" selected>극소형</option>
+          <option value="소형">소형</option>
+          <option value="중형">중형</option>
+          <option value="대형1">대형 1</option>
+          <option value="대형2">대형 2</option>
+          <option value="특대형">특대형</option>
+        </select>
+        <button class="btn btn-size-chart" id="btn-size-chart">사이즈표 보기</button>
+        <div class="spacer"></div>
+        <button class="btn btn-calc" id="btn-calc">계산하기</button>
+      </div>
+
+      <p class="size-hint">치수를 입력하면 자동으로 사이즈 유형을 산정합니다.</p>
+
+    </div><!-- /input-card -->
+
+    <!-- ==================== RESULT CARD A — 마진 계산 ==================== -->
+    <div class="card" id="result-card">
+
+      <div class="card-title">마진 계산</div>
+
+      <div class="result-product-name" id="result-product-name">—</div>
+
+      <!-- 행A: 판매가 | 세금-부가세(10%) | 사이즈 -->
+      <div class="result-row">
+        <div class="result-item">
+          <span class="result-label">판매가</span>
+          <div class="value-box dash" id="val-sale-price">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">세금-부가세(10%)</span>
+          <div class="value-box dash" id="val-vat">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">사이즈</span>
+          <div class="value-box dash" id="val-size">—</div>
+        </div>
+      </div>
+
+      <!-- 행B: 쿠팡 카테고리 수수료율 | 쿠팡-수수료(부가세포함) | 쿠팡-입출고배송비(부가세포함) -->
+      <div class="result-row">
+        <div class="result-item">
+          <span class="result-label">
+            쿠팡 카테고리 수수료율
+            <span class="label-info" tabindex="0"
+                  data-tip="카테고리별로 수수료율이 다릅니다. 현재 값은 상품 카테고리 경로를 기반으로 매칭된 값이며, 공식 표는 ⓘ 클릭해서 확인하세요."
+                  data-modal="commission">ⓘ</span>
+          </span>
+          <div class="value-box dash" id="val-commission-rate">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">쿠팡-수수료(부가세포함)</span>
+          <div class="value-box dash" id="val-commission">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">
+            쿠팡-입출고배송비(부가세포함)
+            <span class="label-info" tabindex="0"
+                  data-tip="로켓그로스 입출고배송비는 카테고리와 판매가에 따라 변동됩니다 (극소형 600~1,350원 / 특대형 1,375~5,600원 범위, 2025.1 개편 기준). 아래 값은 사이즈별 참고값이며, 정확한 금액을 직접 입력할 수 있습니다. ⓘ 클릭 시 상세표·출처 확인."
+                  data-modal="delivery">ⓘ</span>
+          </span>
+          <input type="text" inputmode="numeric" class="value-box dash editable" id="val-delivery" value="—" />
+        </div>
+      </div>
+
+      <!-- 행C: 원가 | 기타비용 -->
+      <div class="result-row">
+        <div class="result-item">
+          <span class="result-label">원가</span>
+          <div class="value-box dash" id="val-cost">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">기타비용</span>
+          <div class="value-box dash" id="val-extra">—</div>
+        </div>
+        <div class="result-item" style="visibility:hidden;"></div>
+      </div>
+
+      <!-- 행D: 최종 마진 | 마진율 -->
+      <div class="result-row result-row-final">
+        <div class="result-item">
+          <span class="result-label">최종 마진</span>
+          <div class="value-box dash" id="val-margin">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">마진율</span>
+          <div class="value-box dash" id="val-margin-rate">—</div>
+        </div>
+        <div class="result-item" style="visibility:hidden;"></div>
+      </div>
+
+    </div><!-- /result-card A (마진 계산) -->
+
+    <!-- ==================== RESULT CARD B — 시장 지표 ==================== -->
+    <div class="card" id="market-card">
+
+      <div class="card-title">시장 지표 <span class="card-title-sub">(28일 기준)</span></div>
+
+      <!-- 행1: 원시 28일 지표 -->
+      <div class="result-row market-row">
+        <div class="result-item">
+          <span class="result-label">28일 조회수</span>
+          <div class="value-box dash" id="val-pv28">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">28일 판매수</span>
+          <div class="value-box dash" id="val-sales28">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">28일 예상매출</span>
+          <div class="value-box dash" id="val-revenue28">—</div>
+        </div>
+      </div>
+
+      <!-- 행2: 파생 지표 -->
+      <div class="result-row market-row">
+        <div class="result-item">
+          <span class="result-label">하루 평균 판매수</span>
+          <div class="value-box dash" id="val-daily-sales">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">
+            구매전환율
+            <span class="label-info" tabindex="0" data-tip="28일 판매수 ÷ 28일 조회수 × 100. 방문자 중 실제 구매한 비율입니다. 일반적으로 1% 이하는 낮음, 3% 이상은 양호, 10% 이상은 매우 우수로 봅니다.">ⓘ</span>
+          </span>
+          <div class="value-box dash" id="val-conv-rate">—</div>
+        </div>
+        <div class="result-item" style="visibility:hidden;"></div>
+      </div>
+
+      <!-- 행3: 메타 정보 -->
+      <div class="result-row market-row">
+        <div class="result-item">
+          <span class="result-label">브랜드</span>
+          <div class="value-box dash" id="val-brand">—</div>
+        </div>
+        <div class="result-item">
+          <span class="result-label">리뷰수</span>
+          <div class="value-box dash" id="val-review">—</div>
+        </div>
+        <div class="result-item" style="visibility:hidden;"></div>
+      </div>
+
+    </div><!-- /result-card -->
+
+  </div><!-- /main-content -->
+
+  <!-- ============================================================
+       STATUS BAR
+       ============================================================ -->
+  <div id="status-bar">
+    <span class="status-icon">✅</span>
+    <span id="status-text">계산 완료!</span>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ============================================================
+     MODAL — 사이즈표
+     ============================================================ -->
+<div id="modal-overlay">
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-title-text">사이즈 기준표</h2>
+      <button class="modal-close-btn" id="modal-close" title="닫기">✕</button>
+    </div>
+    <p class="modal-subtitle">세변합 기준과 무게 기준 중 더 큰 등급이 최종 적용됩니다.</p>
+
+    <div class="size-table-scroll">
+    <table class="size-table">
+      <thead>
+        <tr>
+          <th class="measure-col">측정 기준</th>
+          <th>극소형</th>
+          <th>소형</th>
+          <th>중형</th>
+          <th>대형 1</th>
+          <th>대형 2</th>
+          <th>특대형</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="measure-col">가로+세로+높이 (cm)</td>
+          <td>~ 80</td>
+          <td>80 초과 ~ 100</td>
+          <td>100 초과 ~ 120</td>
+          <td>120 초과 ~ 140</td>
+          <td>140 초과 ~ 160</td>
+          <td>160 초과 ~ 250</td>
+        </tr>
+        <tr>
+          <td class="measure-col">무게 (kg)</td>
+          <td>~ 2</td>
+          <td>2 초과 ~ 5</td>
+          <td>5 초과 ~ 10</td>
+          <td>10 초과 ~ 15</td>
+          <td>15 초과 ~ 20</td>
+          <td>20 초과 ~ 30</td>
+        </tr>
+      </tbody>
+    </table>
+    </div><!-- /size-table-scroll -->
+
+    <p class="modal-note">※ 세변합 &gt; 250cm 또는 무게 &gt; 30kg 이면 <b>입고 불가</b> (특대형 초과 — Wing 공식). <br>※ 세 변 합과 무게 중 <b>더 큰 등급</b>이 최종 사이즈로 결정됩니다. <br>※ FC 최초 입고 시점의 <b>실측값</b>으로 최종 사이즈가 확정됩니다.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL — 수수료율표 (카테고리별)
+     ============================================================ -->
+<div id="modal-commission-overlay" class="ref-modal-overlay">
+  <div class="ref-modal" role="dialog" aria-modal="true" aria-labelledby="commission-title">
+    <div class="modal-header">
+      <h2 class="modal-title" id="commission-title">쿠팡 카테고리별 판매 수수료율</h2>
+      <button class="modal-close-btn" data-close="commission" title="닫기">✕</button>
+    </div>
+    <p class="modal-subtitle">부가세 별도 기준 · 2019.11.25 개정, 이후 유지 중 · 총 36개 카테고리</p>
+
+    <div class="ref-scroll">
+      <table class="ref-table">
+        <thead>
+          <tr><th>카테고리</th><th>수수료율</th></tr>
+        </thead>
+        <tbody id="commission-tbody">
+          <!-- JS에서 동적 주입 -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-source">
+      <span class="ref-source-label">출처</span>
+      <a href="#" class="ref-source-link" data-ext="https://cloud.mkt.coupang.com/Fee-Table">
+        cloud.mkt.coupang.com/Fee-Table ↗
+      </a>
+    </div>
+
+    <p class="modal-note">※ 현재 앱은 상품의 <b>카테고리 경로</b>를 읽어 키워드 매칭으로 수수료율을 자동 선택합니다. 매칭 실패 시 기본값 10.8%를 적용합니다.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL — 로켓그로스 입출고 배송비 범위표
+     ============================================================ -->
+<div id="modal-delivery-overlay" class="ref-modal-overlay">
+  <div class="ref-modal" role="dialog" aria-modal="true" aria-labelledby="delivery-title">
+    <div class="modal-header">
+      <h2 class="modal-title" id="delivery-title">로켓그로스 입출고배송비 (2025.1 개편 기준)</h2>
+      <button class="modal-close-btn" data-close="delivery" title="닫기">✕</button>
+    </div>
+    <p class="modal-subtitle">기존 3단계 → 6단계 세분화 · 건당 배송비 (부가세 별도) · 카테고리 + 판매가에 따라 범위 내 변동</p>
+
+    <div class="ref-scroll">
+      <table class="ref-table">
+        <thead>
+          <tr><th>사이즈</th><th>건당 배송비</th><th>기준</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>극소형</td><td>600원 ~ 1,350원</td><td>~2kg, 세변합 ~80cm</td></tr>
+          <tr><td>소형</td><td>650원 ~ 1,550원</td><td>2~5kg, 세변합 80~100cm</td></tr>
+          <tr><td>중형</td><td>1,250원 ~ 2,100원</td><td>5~10kg, 세변합 100~120cm</td></tr>
+          <tr><td>대형 1</td><td>1,375원 ~ 2,200원</td><td>10~15kg, 세변합 120~140cm</td></tr>
+          <tr><td>대형 2</td><td>1,375원 ~ 4,100원</td><td>15~20kg, 세변합 140~160cm</td></tr>
+          <tr><td>특대형</td><td>1,375원 ~ 5,600원</td><td>20~30kg, 세변합 160~250cm</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="modal-note">
+      ※ 2025.1.6부터 적용. 반출비 +300원/건 별도. 월 20건 반품까지 무상 (2026.1까지).<br>
+      ※ 실제 금액은 상품 카테고리와 최종 판매가에 따라 범위 내에서 변동됩니다 — <b>Wing 판매자센터 &gt; 정산 &gt; 요금 안내</b>에서 개별 상품 기준 확인.
+    </p>
+
+    <div class="ref-source">
+      <span class="ref-source-label">출처</span>
+      <a href="#" class="ref-source-link" data-ext="https://sell.coupang.com/en-us/fee-page">
+        sell.coupang.com/en-us/fee-page (공식) ↗
+      </a>
+      <a href="#" class="ref-source-link" data-ext="https://www.windly.cc/blog/2025-coupang-rocket-growth-fee">
+        windly.cc — 2025 개편 요약 ↗
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCRIPT
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ——————————————————————————————————————————
+     SIZE CONSTANTS
+  —————————————————————————————————————————— */
+  const SIZE_DELIVERY_FEES = {
+    '극소형': 0,
+    '소형':   2500,
+    '중형':   3500,
+    '대형1':  5000,
+    '대형2':  7000,
+    '특대형': 10000,
+  };
+
+  /* ——————————————————————————————————————————
+     HELPERS
+  —————————————————————————————————————————— */
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ko-KR') + '원';
+  }
+
+  function fmtPct(n) {
+    return n.toFixed(2) + '%';
+  }
+
+  function calcSizeType(w, d, h, kg) {
+    const sum = (w || 0) + (d || 0) + (h || 0);
+    let byDim = '극소형';
+    if (sum > 160)      byDim = '특대형';
+    else if (sum > 140) byDim = '대형2';
+    else if (sum > 120) byDim = '대형1';
+    else if (sum > 100) byDim = '중형';
+    else if (sum > 80)  byDim = '소형';
+
+    let byWeight = '극소형';
+    if      (kg > 20) byWeight = '특대형';
+    else if (kg > 15) byWeight = '대형2';
+    else if (kg > 10) byWeight = '대형1';
+    else if (kg >  5) byWeight = '중형';
+    else if (kg >  2) byWeight = '소형';
+
+    const order = ['극소형','소형','중형','대형1','대형2','특대형'];
+    return order.indexOf(byDim) >= order.indexOf(byWeight) ? byDim : byWeight;
+  }
+
+  /* ——————————————————————————————————————————
+     AUTO SIZE UPDATE
+  —————————————————————————————————————————— */
+  const dimInputs = ['input-width','input-depth','input-height','input-weight']
+    .map(id => document.getElementById(id));
+  const sizeSelect = document.getElementById('select-size-type');
+  const chkAutoSize = document.getElementById('chk-auto-size');
+
+  function updateAutoSize() {
+    if (!chkAutoSize.checked) return;
+    const [w, d, h, kg] = dimInputs.map(el => parseFloat(el.value) || 0);
+    if (w || d || h || kg) {
+      sizeSelect.value = calcSizeType(w, d, h, kg);
+    }
+  }
+
+  dimInputs.forEach(el => el.addEventListener('input', updateAutoSize));
+  chkAutoSize.addEventListener('change', updateAutoSize);
+
+  /* ——————————————————————————————————————————
+     CALCULATE
+  —————————————————————————————————————————— */
+  document.getElementById('btn-calc').addEventListener('click', calculate);
+
+  function setVal(id, text, cls) {
+    const el = document.getElementById(id);
+    if (el.tagName === 'INPUT') {
+      // 입력 박스: value만 갱신, className 보존 (editable 클래스 유지)
+      el.value = text;
+      return;
+    }
+    el.textContent = text;
+    el.className = 'value-box' + (cls ? ' ' + cls : '');
+  }
+
+  // 마지막 계산 상태 — 배송비 수동 수정 시 재계산에 사용
+  let lastCalc = null;
+
+  // 주어진 배송비로 최종 마진/마진율만 재계산해 UI 갱신
+  function renderMargin(deliveryFee) {
+    if (!lastCalc) return;
+    const { salePrice, vat, commission, cost, extraCost } = lastCalc;
+    const margin     = salePrice - vat - commission - deliveryFee - cost - extraCost;
+    const marginRate = salePrice > 0 ? (margin / salePrice) * 100 : 0;
+    setVal('val-margin',      fmt(margin),       margin     >= 0 ? 'green' : '');
+    setVal('val-margin-rate', fmtPct(marginRate), marginRate >= 0 ? 'green' : '');
+  }
+
+  // 배송비 입력칸에서 숫자만 추출 (2,500원 → 2500)
+  function parseDelivery(str) {
+    const n = parseInt(String(str).replace(/[^\d]/g, ''), 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // 배송비 입력칸 수동 수정 → 즉시 마진 재계산
+  (function bindDeliveryEdit() {
+    const el = document.getElementById('val-delivery');
+    el.addEventListener('input', () => {
+      if (!lastCalc) return;
+      const df = parseDelivery(el.value);
+      const auto = SIZE_DELIVERY_FEES[lastCalc.sizeType] ?? 0;
+      el.classList.toggle('edited', df !== auto);
+      renderMargin(df);
+    });
+    // blur 시 값 포맷 정돈 (숫자만 남아있어도 ,와 '원' 재부착)
+    el.addEventListener('blur', () => {
+      if (!lastCalc) return;
+      const df = parseDelivery(el.value);
+      el.value = df ? fmt(df) : '0원';
+    });
+  })();
+
+  async function calculate() {
+    const url       = document.getElementById('input-url').value.trim();
+    const cost      = parseFloat(document.getElementById('input-cost').value) || 0;
+    const extraCost = parseFloat(document.getElementById('input-extra-cost').value) || 0;
+    const sizeType  = sizeSelect.value;
+
+    if (!url)  { showStatus('상품 URL을 입력해주세요.', false); return; }
+    if (!cost) { showStatus('원가를 입력해주세요.', false); return; }
+
+    showStatus('상품 정보 조회 중...', true);
+
+    let info;
+    try {
+      info = await window.api.fetchProductInfo(url);
+    } catch (e) {
+      showStatus('조회 실패: ' + e.message, false);
+      return;
+    }
+    if (!info || info.error) {
+      showStatus(info?.error || '조회 실패', false);
+      return;
+    }
+
+    // 계산 (배송비는 사이즈별 참고값 — 수동 수정 가능)
+    const salePrice       = info.salePrice || 0;
+    const commissionRate  = info.commissionRate || 0;
+    const commissionNoVat = salePrice * commissionRate / 100;
+    const commission      = Math.round(commissionNoVat * 1.1);
+    const vat             = Math.round((salePrice - commissionNoVat - cost) * 0.1);
+    const deliveryFee     = SIZE_DELIVERY_FEES[sizeType] ?? 0;
+
+    // 계산 컨텍스트 저장 (배송비 수동 수정 시 즉시 재계산용)
+    lastCalc = { salePrice, commissionRate, commission, vat, cost, extraCost, sizeType };
+
+    // 상품명 & 카테고리
+    const nameEl = document.getElementById('result-product-name');
+    const safeName = (info.productName || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    const safeCat  = (info.categoryPath || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    nameEl.innerHTML = `<span>${safeName}</span>${safeCat ? ' — ' + safeCat : ''}`;
+
+    // 배송비 입력칸: 자동값으로 채우고 .edited 클래스 해제
+    const deliveryInput = document.getElementById('val-delivery');
+    deliveryInput.value = fmt(deliveryFee);
+    deliveryInput.classList.remove('edited');
+
+    setVal('val-sale-price',      fmt(salePrice),            '');
+    setVal('val-vat',             fmt(vat),                  '');
+    setVal('val-size',            sizeType,                  '');
+    setVal('val-commission-rate', fmtPct(commissionRate),    '');
+    setVal('val-commission',      fmt(commission),           '');
+    setVal('val-cost',            fmt(cost),                 '');
+    setVal('val-extra',           fmt(extraCost),            '');
+
+    // 마진은 deliveryFee와 함께 별도 함수에서 렌더링 (재사용)
+    renderMargin(deliveryFee);
+
+    // 시장 지표 (28일)
+    const pv28       = info.pvLast28Day   || 0;
+    const sales28    = info.salesLast28d  || 0;
+    const revenue28  = info.revenueLast28d || 0;
+    const reviewCnt  = info.ratingCount   || 0;
+    const brandName  = info.brandName     || '—';
+
+    // 파생 지표
+    const dailySales = sales28 > 0 ? (sales28 / 28) : 0;   // 하루 평균 판매수 (소수 가능)
+    const convRate   = pv28 > 0 ? (sales28 / pv28 * 100) : 0; // 구매전환율 %
+
+    setVal('val-pv28',        pv28      ? pv28.toLocaleString('ko-KR') + '회'     : '—', '');
+    setVal('val-sales28',     sales28   ? sales28.toLocaleString('ko-KR') + '개'   : '—', '');
+    setVal('val-revenue28',   revenue28 ? fmt(revenue28)                           : '—', '');
+    setVal('val-daily-sales', dailySales > 0
+      ? (dailySales < 1 ? dailySales.toFixed(2) : dailySales.toFixed(1)) + '개/일'
+      : '—', '');
+    setVal('val-conv-rate',   convRate > 0 ? convRate.toFixed(2) + '%' : '—', '');
+    setVal('val-review',      reviewCnt ? reviewCnt.toLocaleString('ko-KR') + '개' : '—', '');
+    setVal('val-brand',       brandName, '');
+
+    showStatus('계산 완료!', true);
+  }
+
+  /* ——————————————————————————————————————————
+     FILL RESULTS  (called after real IPC response)
+  —————————————————————————————————————————— */
+  // eslint-disable-next-line no-unused-vars
+  function fillResults(r) {
+    // r: { productName, categoryPath, salePrice, commissionRate, sizeType,
+    //       vat, commission, deliveryFee, cost, extraCost, margin, marginRate }
+    document.getElementById('result-product-name').innerHTML =
+      `<span>${r.productName}</span> — ${r.categoryPath}`;
+
+    setVal('val-sale-price',      fmt(r.salePrice),                '');
+    setVal('val-vat',             fmt(r.vat),                      '');
+    setVal('val-size',            r.sizeType,                      '');
+    setVal('val-commission-rate', fmtPct(r.commissionRate),        '');
+    setVal('val-commission',      fmt(r.commission),               '');
+    document.getElementById('val-delivery').value = fmt(r.deliveryFee);
+    setVal('val-cost',            fmt(r.cost),                     '');
+    setVal('val-extra',           fmt(r.extraCost),                '');
+    setVal('val-margin',          fmt(r.margin),                   r.margin >= 0 ? 'green' : '');
+    setVal('val-margin-rate',     fmtPct(r.marginRate),            r.marginRate >= 0 ? 'green' : '');
+    showStatus('계산 완료!', true);
+  }
+
+  /* ——————————————————————————————————————————
+     STATUS BAR
+  —————————————————————————————————————————— */
+  let statusTimer = null;
+  function showStatus(msg, success) {
+    const bar = document.getElementById('status-bar');
+    const icon = bar.querySelector('.status-icon');
+    document.getElementById('status-text').textContent = msg;
+    icon.textContent = success ? '✅' : '⚠️';
+    bar.classList.add('visible');
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => bar.classList.remove('visible'), 3000);
+  }
+
+  /* ——————————————————————————————————————————
+     MODAL — 사이즈 기준표 (기존)
+  —————————————————————————————————————————— */
+  const modalOverlay = document.getElementById('modal-overlay');
+
+  document.getElementById('btn-size-chart').addEventListener('click', () => {
+    modalOverlay.classList.add('visible');
+  });
+
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      closeRefModals();
+    }
+  });
+
+  /* ——————————————————————————————————————————
+     MODAL — 참고자료 (수수료율 / 배송비)
+  —————————————————————————————————————————— */
+  // 36개 카테고리 수수료율 (commissionRates.js와 동기화)
+  const COMMISSION_TABLE = [
+    ['가전디지털', 7.8], ['가전디지털 > 게임', 6.8], ['가전디지털 > 냉난방에어컨', 5.8],
+    ['가전디지털 > 카메라', 6.0], ['가전디지털 > 렌즈', 5.8], ['가전디지털 > 태블릿PC', 5.0],
+    ['가전디지털 > 냉장고', 5.8], ['가전디지털 > 세탁기', 5.8], ['가전디지털 > TV', 5.8],
+    ['가전디지털 > 영상가전', 5.8], ['가전디지털 > 컴퓨터', 5.0], ['가전디지털 > 모니터', 4.5],
+    ['가전디지털 > 컴퓨터주변기기', 4.5],
+    ['가구 / 홈인테리어', 10.8],
+    ['도서 / 음반 / 문구 / 사무용품', 10.8],
+    ['출산유아', 10.0], ['출산유아 > 기저귀', 6.4], ['출산유아 > 분유', 6.4],
+    ['출산유아 > 영유아물티슈', 8.2], ['출산유아 > 영유아식품', 7.8],
+    ['출산유아 > 기저귀크림 / 파우더', 9.8],
+    ['스포츠 / 레저', 10.8], ['스포츠 > 골프', 7.6], ['스포츠 > 자전거', 7.6],
+    ['스포츠 > 의류 / 신발', 10.5],
+    ['뷰티', 9.6],
+    ['생활용품', 7.8],
+    ['공구 / 철물 / DIY', 10.8],
+    ['식품', 10.6], ['식품 > 면 / 라면', 10.9], ['식품 > 쌀 / 잡곡 / 신선식품', 5.8],
+    ['식품 > 채소', 7.6],
+    ['완구 / 취미', 10.8],
+    ['자동차용품', 10.0], ['자동차용품 > 오토바이', 7.6],
+    ['자동차용품 > 내비게이션 / 블랙박스', 6.8],
+    ['주방용품', 10.8],
+    ['패션', 10.5], ['패션 > 쥬얼리', 4.0],
+    ['반려 / 애완', 10.8],
+    ['의료 / 환자보조', 10.0],
+    ['금연 / 흡연', 10.8],
+  ];
+
+  // 수수료율 tbody 주입 (한 번만)
+  (function populateCommissionTable() {
+    const tbody = document.getElementById('commission-tbody');
+    if (!tbody) return;
+    const rows = COMMISSION_TABLE.map(([name, rate]) => {
+      const safe = String(name).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+      return `<tr><td>${safe}</td><td class="rate-cell">${rate.toFixed(1)}%</td></tr>`;
+    }).join('');
+    tbody.innerHTML = rows;
+  })();
+
+  const refOverlays = {
+    commission: document.getElementById('modal-commission-overlay'),
+    delivery:   document.getElementById('modal-delivery-overlay'),
+  };
+
+  function openRefModal(kind) {
+    const el = refOverlays[kind];
+    if (el) el.classList.add('visible');
+  }
+  function closeRefModals() {
+    Object.values(refOverlays).forEach(el => el && el.classList.remove('visible'));
+  }
+
+  // ⓘ[data-modal] 클릭 → 모달 오픈
+  document.querySelectorAll('.label-info[data-modal]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openRefModal(el.dataset.modal);
+    });
+  });
+
+  // 닫기 버튼 / 오버레이 클릭 → 닫기
+  document.querySelectorAll('.modal-close-btn[data-close]').forEach(btn => {
+    btn.addEventListener('click', closeRefModals);
+  });
+  Object.values(refOverlays).forEach(overlay => {
+    if (!overlay) return;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeRefModals();
+    });
+  });
+
+  // 외부 링크 → 기본 브라우저로 열기
+  document.querySelectorAll('.ref-source-link[data-ext]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = a.dataset.ext;
+      if (url && window.api && window.api.openExternal) {
+        window.api.openExternal(url);
+      }
+    });
+  });
+
+  function closeModal() {
+    modalOverlay.classList.remove('visible');
+  }
+
+  /* ——————————————————————————————————————————
+     TITLEBAR IPC BUTTONS
+  —————————————————————————————————————————— */
+  document.getElementById('btn-minimize').addEventListener('click', () => {
+    window.api?.windowMinimize();
+  });
+  document.getElementById('btn-maximize').addEventListener('click', () => {
+    window.api?.windowMaximize();
+  });
+  document.getElementById('btn-close').addEventListener('click', () => {
+    window.api?.windowClose();
+  });
+
+  document.getElementById('zoom-select').addEventListener('change', (e) => {
+    const zoom = parseInt(e.target.value, 10) / 100;
+    window.api?.windowZoom(zoom);
+  });
+
+  // 초기 배율 적용 (기본 selected="100")
+  (function applyInitialZoom() {
+    const sel = document.getElementById('zoom-select');
+    const zoom = parseInt(sel.value, 10) / 100;
+    window.api?.windowZoom(zoom);
+  })();
+
+  /* ——————————————————————————————————————————
+     THEME TOGGLE — 라이트/다크 전환
+     (초기 테마는 <head> 조기 스크립트가 이미 적용했음)
+  —————————————————————————————————————————— */
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const next = cur === 'light' ? 'dark' : 'light';
+    if (next === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    try { localStorage.setItem('gomargin-theme', next); } catch (e) { /* 무시 */ }
+  });
+
+  /* ——————————————————————————————————————————
+     COUPANG LOGIN BUTTON
+  —————————————————————————————————————————— */
+  document.getElementById('btn-coupang-login').addEventListener('click', async () => {
+    try {
+      await window.api?.openCoupangLogin();
+    } catch (e) {
+      showStatus('로그인 창 열기 실패: ' + e.message, false);
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>

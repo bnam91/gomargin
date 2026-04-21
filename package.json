@@ -1,0 +1,13 @@
+{
+  "name": "gomargin",
+  "version": "1.0.0",
+  "description": "쿠팡 마진 계산기",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "start": "electron . --remote-debugging-port=9343 --remote-allow-origins=*"
+  },
+  "devDependencies": {
+    "electron": "^35.1.0"
+  }
+}
