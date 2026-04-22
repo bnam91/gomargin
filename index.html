@@ -172,7 +172,7 @@
         <div class="result-item" style="visibility:hidden;"></div>
       </div>
 
-      <!-- 행D: 최종 마진 | 마진율 -->
+      <!-- 행D: 최종 마진 | 마진율 | 28일 예상 마진 -->
       <div class="result-row result-row-final">
         <div class="result-item">
           <span class="result-label">최종 마진</span>
@@ -182,7 +182,10 @@
           <span class="result-label">마진율</span>
           <div class="value-box dash" id="val-margin-rate">—</div>
         </div>
-        <div class="result-item" style="visibility:hidden;"></div>
+        <div class="result-item">
+          <span class="result-label">28일 예상 마진</span>
+          <div class="value-box dash" id="val-margin-28d">—</div>
+        </div>
       </div>
 
     </div><!-- /result-card A (마진 계산) -->
@@ -515,11 +518,15 @@
   // 주어진 배송비로 최종 마진/마진율만 재계산해 UI 갱신
   function renderMargin(deliveryFee) {
     if (!lastCalc) return;
-    const { salePrice, vat, commission, cost, extraCost } = lastCalc;
+    const { salePrice, vat, commission, cost, extraCost, sales28 } = lastCalc;
     const margin     = salePrice - vat - commission - deliveryFee - cost - extraCost;
     const marginRate = salePrice > 0 ? (margin / salePrice) * 100 : 0;
     setVal('val-margin',      fmt(margin),       margin     >= 0 ? 'green' : '');
     setVal('val-margin-rate', fmtPct(marginRate), marginRate >= 0 ? 'green' : '');
+    const margin28 = (sales28 || 0) * margin;
+    setVal('val-margin-28d',
+      sales28 > 0 ? fmt(margin28) : '—',
+      sales28 > 0 && margin28 >= 0 ? 'green' : '');
   }
 
   // 배송비 입력칸에서 숫자만 추출 (2,500원 → 2500)
@@ -613,7 +620,7 @@
     }
 
     // 계산 컨텍스트 저장 (배송비 수동 수정 시 즉시 재계산용)
-    lastCalc = { salePrice, commissionRate, commission, vat, cost, extraCost, sizeType: finalSizeType, feeSource, autoDelivery: deliveryFee };
+    lastCalc = { salePrice, commissionRate, commission, vat, cost, extraCost, sizeType: finalSizeType, feeSource, autoDelivery: deliveryFee, sales28: info.salesLast28d || 0 };
 
     // 상품명 & 카테고리
     const nameEl = document.getElementById('result-product-name');
