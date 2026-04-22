@@ -79,10 +79,10 @@
       <!-- 행3: 가로/세로/높이/무게 + 체크박스 -->
       <div class="input-row dim-row">
         <span class="row-label">가로/세로/높이/무게</span>
-        <input id="input-width"  type="number" placeholder="가로(cm)"  min="0" step="0.1" />
-        <input id="input-depth"  type="number" placeholder="세로(cm)"  min="0" step="0.1" />
-        <input id="input-height" type="number" placeholder="높이(cm)"  min="0" step="0.1" />
-        <input id="input-weight" type="number" placeholder="무게(kg)"  min="0" step="0.01" />
+        <input id="input-width"  type="number" placeholder="가로(mm)"  min="0" step="1" />
+        <input id="input-depth"  type="number" placeholder="세로(mm)"  min="0" step="1" />
+        <input id="input-height" type="number" placeholder="높이(mm)"  min="0" step="1" />
+        <input id="input-weight" type="number" placeholder="무게(g)"   min="0" step="1" />
         <div class="checkbox-group">
           <input type="checkbox" id="chk-auto-size" checked />
           <label for="chk-auto-size">사이즈 자동 적용(가로·세로·높이·무게)</label>
@@ -151,8 +151,10 @@
           <span class="result-label">
             쿠팡-입출고배송비(부가세포함)
             <span class="label-info" tabindex="0"
-                  data-tip="로켓그로스 입출고배송비는 카테고리와 판매가에 따라 변동됩니다 (극소형 600~1,350원 / 특대형 1,375~5,600원 범위, 2025.1 개편 기준). 아래 값은 사이즈별 참고값이며, 정확한 금액을 직접 입력할 수 있습니다. ⓘ 클릭 시 상세표·출처 확인."
+                  data-tip="로켓그로스 입출고배송비 = 입출고비(수량 당) + 배송비(주문 당). 치수·무게를 모두 입력하면 Wing 공식 계산기 API를 호출해 정확한 값을 가져옵니다(사이즈 옆에 · Wing 표시). 치수 미입력 시 사이즈표 기본값(극소형 3,850원 → 특대형 11,900원, 2025.1.6 개편 기준)으로 폴백. ※ 이 값은 할인·프로모션 전 기본 요율이므로, 현재 진행 중인 프로모션 할인은 반영되지 않습니다. 현재 실납부액은 Wing 계산기(fee-details)에서 직접 확인해주세요. ⓘ 클릭 시 상세표·출처 확인."
                   data-modal="delivery">ⓘ</span>
+            <a href="#" class="wing-calc-link" id="link-wing-calc"
+               title="Wing 공식 계산기 열기 (실납부액 확인용)">🧮 Wing 계산기</a>
           </span>
           <input type="text" inputmode="numeric" class="value-box dash editable" id="val-delivery" value="—" />
         </div>
@@ -343,27 +345,29 @@
       <h2 class="modal-title" id="delivery-title">로켓그로스 입출고배송비 (2025.1 개편 기준)</h2>
       <button class="modal-close-btn" data-close="delivery" title="닫기">✕</button>
     </div>
-    <p class="modal-subtitle">기존 3단계 → 6단계 세분화 · 건당 배송비 (부가세 별도) · 카테고리 + 판매가에 따라 범위 내 변동</p>
+    <p class="modal-subtitle">입출고비(수량 당) + 배송비(주문 당) 분리 과금 · 부가세 별도 · 2025.1.6 개편 기준</p>
 
     <div class="ref-scroll">
       <table class="ref-table">
         <thead>
-          <tr><th>사이즈</th><th>건당 배송비</th><th>기준</th></tr>
+          <tr><th>사이즈</th><th>입출고비 (a)</th><th>배송비 (b)</th><th>합계</th><th>기준 (세변합 / 무게)</th></tr>
         </thead>
         <tbody>
-          <tr><td>극소형</td><td>600원 ~ 1,350원</td><td>~2kg, 세변합 ~80cm</td></tr>
-          <tr><td>소형</td><td>650원 ~ 1,550원</td><td>2~5kg, 세변합 80~100cm</td></tr>
-          <tr><td>중형</td><td>1,250원 ~ 2,100원</td><td>5~10kg, 세변합 100~120cm</td></tr>
-          <tr><td>대형 1</td><td>1,375원 ~ 2,200원</td><td>10~15kg, 세변합 120~140cm</td></tr>
-          <tr><td>대형 2</td><td>1,375원 ~ 4,100원</td><td>15~20kg, 세변합 140~160cm</td></tr>
-          <tr><td>특대형</td><td>1,375원 ~ 5,600원</td><td>20~30kg, 세변합 160~250cm</td></tr>
+          <tr><td>극소형</td><td>1,650원</td><td>2,200원</td><td><b>3,850원</b></td><td>~80cm / ~2kg</td></tr>
+          <tr><td>소형</td><td>1,750원</td><td>2,400원</td><td><b>4,150원</b></td><td>80~100cm / 2~5kg</td></tr>
+          <tr><td>중형</td><td>2,000원</td><td>3,000원</td><td><b>5,000원</b></td><td>100~120cm / 5~10kg</td></tr>
+          <tr><td>대형 1</td><td>2,400원</td><td>4,000원</td><td><b>6,400원</b></td><td>120~140cm / 10~15kg</td></tr>
+          <tr><td>대형 2</td><td>2,400원</td><td>5,500원</td><td><b>7,900원</b></td><td>140~160cm / 15~20kg</td></tr>
+          <tr><td>특대형</td><td>2,400원</td><td>9,500원</td><td><b>11,900원</b></td><td>160~250cm / 20~30kg</td></tr>
         </tbody>
       </table>
     </div>
 
     <p class="modal-note">
-      ※ 2025.1.6부터 적용. 반출비 +300원/건 별도. 월 20건 반품까지 무상 (2026.1까지).<br>
-      ※ 실제 금액은 상품 카테고리와 최종 판매가에 따라 범위 내에서 변동됩니다 — <b>Wing 판매자센터 &gt; 정산 &gt; 요금 안내</b>에서 개별 상품 기준 확인.
+      ※ 공식값은 <b>사이즈 유형에만 의존</b>합니다 (카테고리·판매가 무관, 2026-04 직접 검증). 카테고리·판매가는 프로모션·저가할인 단계에서만 반영.<br>
+      ※ 현재 프로모션 진행 중: 반품 시 입출고/배송비 전액 환불 (2026-04 기준).<br>
+      ※ 합포장 규칙 — 극소형~대형1: 배송비 주문당 1회 / 대형2~특대형 또는 다른 옵션: 수량당 배송비 부과.<br>
+      ※ 저가할인 (14,000원 미만 + 10개 카테고리 해당 시): 영유아·뷰티·음료·신선식품·하우스홀드·건강식품·퍼스널케어·애완·스낵/커피/차. <b>Wing 정산 &gt; 입출고/배송 비용 계산기</b>에서 개별 확인.
     </p>
 
     <div class="ref-source">
@@ -388,14 +392,39 @@
   /* ——————————————————————————————————————————
      SIZE CONSTANTS
   —————————————————————————————————————————— */
-  const SIZE_DELIVERY_FEES = {
-    '극소형': 0,
-    '소형':   2500,
-    '중형':   3500,
-    '대형1':  5000,
-    '대형2':  7000,
-    '특대형': 10000,
+  // Wing 공식 기본값 (입출고비 + 배송비). 2026-04 직접 캡처.
+  // 출처: /tenants/rfm/api/accounting/revamp/{warehousing-fee,fulfillment-fee}
+  //       응답의 promotionDetails.totalDefaultDiscountAmount (프로모션/할인 전)
+  // 결론: 기본값은 사이즈에만 의존. 카테고리·판매가는 프로모션·저가할인 단계에서만 반영됨.
+  const SIZE_FEE_BREAKDOWN = {
+    '극소형': { warehouse: 1650, shipping: 2200 },
+    '소형':   { warehouse: 1750, shipping: 2400 },
+    '중형':   { warehouse: 2000, shipping: 3000 },
+    '대형1':  { warehouse: 2400, shipping: 4000 },
+    '대형2':  { warehouse: 2400, shipping: 5500 },
+    '특대형': { warehouse: 2400, shipping: 9500 },
   };
+  const SIZE_DELIVERY_FEES = Object.fromEntries(
+    Object.entries(SIZE_FEE_BREAKDOWN).map(([k, v]) => [k, v.warehouse + v.shipping])
+  );
+
+  // 사이즈 선택 시 치수칸 자동입력용 대표치수 (UI 단위 mm·g, API도 동일 단위).
+  // 각 등급 상한보다 작게 — 상위 등급으로 안 넘어가도록. 세변합·무게 둘 다 해당 범위 내.
+  const SIZE_UI_DIMS = {
+    '극소형': { w: 250, d: 250, h: 250, g: 1500 },   // 750mm합, 1500g (≤800/≤2000)
+    '소형':   { w: 320, d: 320, h: 320, g: 3000 },   // 960mm합, 3000g (≤1000/≤5000)
+    '중형':   { w: 390, d: 390, h: 390, g: 7000 },   // 1170mm합, 7000g (≤1200/≤10000)
+    '대형1':  { w: 460, d: 460, h: 460, g: 12000 },  // 1380mm합, 12000g (≤1400/≤15000)
+    '대형2':  { w: 530, d: 530, h: 530, g: 17000 },  // 1590mm합, 17000g (≤1600/≤20000)
+    '특대형': { w: 800, d: 800, h: 800, g: 25000 },  // 2400mm합, 25000g (≤2500/≤30000)
+  };
+
+  // calculate() 호출 시 API 단위 fallback (치수 수동 clear 했을 때만 쓰임). API는 mm·g.
+  const SIZE_REPRESENTATIVE_DIMS = Object.fromEntries(
+    Object.entries(SIZE_UI_DIMS).map(([k, v]) => [k, {
+      length: v.d, width: v.w, height: v.h, weight: v.g
+    }])
+  );
 
   /* ——————————————————————————————————————————
      HELPERS
@@ -408,21 +437,22 @@
     return n.toFixed(2) + '%';
   }
 
-  function calcSizeType(w, d, h, kg) {
-    const sum = (w || 0) + (d || 0) + (h || 0);
+  // 입력 단위: mm / g
+  function calcSizeType(w, d, h, g) {
+    const sum = (w || 0) + (d || 0) + (h || 0);    // mm 합
     let byDim = '극소형';
-    if (sum > 160)      byDim = '특대형';
-    else if (sum > 140) byDim = '대형2';
-    else if (sum > 120) byDim = '대형1';
-    else if (sum > 100) byDim = '중형';
-    else if (sum > 80)  byDim = '소형';
+    if (sum > 1600)      byDim = '특대형';
+    else if (sum > 1400) byDim = '대형2';
+    else if (sum > 1200) byDim = '대형1';
+    else if (sum > 1000) byDim = '중형';
+    else if (sum > 800)  byDim = '소형';
 
     let byWeight = '극소형';
-    if      (kg > 20) byWeight = '특대형';
-    else if (kg > 15) byWeight = '대형2';
-    else if (kg > 10) byWeight = '대형1';
-    else if (kg >  5) byWeight = '중형';
-    else if (kg >  2) byWeight = '소형';
+    if      (g > 20000) byWeight = '특대형';
+    else if (g > 15000) byWeight = '대형2';
+    else if (g > 10000) byWeight = '대형1';
+    else if (g >  5000) byWeight = '중형';
+    else if (g >  2000) byWeight = '소형';
 
     const order = ['극소형','소형','중형','대형1','대형2','특대형'];
     return order.indexOf(byDim) >= order.indexOf(byWeight) ? byDim : byWeight;
@@ -438,14 +468,31 @@
 
   function updateAutoSize() {
     if (!chkAutoSize.checked) return;
-    const [w, d, h, kg] = dimInputs.map(el => parseFloat(el.value) || 0);
-    if (w || d || h || kg) {
-      sizeSelect.value = calcSizeType(w, d, h, kg);
+    const [w, d, h, g] = dimInputs.map(el => parseFloat(el.value) || 0);
+    if (w || d || h || g) {
+      sizeSelect.value = calcSizeType(w, d, h, g);
     }
   }
 
   dimInputs.forEach(el => el.addEventListener('input', updateAutoSize));
   chkAutoSize.addEventListener('change', updateAutoSize);
+
+  // 사이즈 드롭다운 선택 시 → 해당 등급 대표치수로 치수칸 자동 입력
+  // (자동 사이즈 체크는 잠시 꺼서 피드백 루프 방지. 대표치수가 해당 등급 범위 내라 사실상 idempotent지만 안전장치)
+  function fillDimsFromSize() {
+    const dims = SIZE_UI_DIMS[sizeSelect.value];
+    if (!dims) return;
+    const autoPrev = chkAutoSize.checked;
+    chkAutoSize.checked = false;
+    dimInputs[0].value = dims.w;
+    dimInputs[1].value = dims.d;
+    dimInputs[2].value = dims.h;
+    dimInputs[3].value = dims.g;
+    chkAutoSize.checked = autoPrev;
+  }
+  sizeSelect.addEventListener('change', fillDimsFromSize);
+  // 페이지 로드 시 기본 사이즈의 대표치수 프리필 — 사용자가 어떤 값으로 계산되는지 즉시 확인 가능
+  fillDimsFromSize();
 
   /* ——————————————————————————————————————————
      CALCULATE
@@ -488,7 +535,8 @@
     el.addEventListener('input', () => {
       if (!lastCalc) return;
       const df = parseDelivery(el.value);
-      const auto = SIZE_DELIVERY_FEES[lastCalc.sizeType] ?? 0;
+      // Wing API로 가져온 값이 있으면 그 값이 "자동", 없으면 사이즈표 기본값이 "자동"
+      const auto = lastCalc.autoDelivery ?? (SIZE_DELIVERY_FEES[lastCalc.sizeType] ?? 0);
       el.classList.toggle('edited', df !== auto);
       renderMargin(df);
     });
@@ -509,19 +557,24 @@
     if (!url)  { showStatus('상품 URL을 입력해주세요.', false); return; }
     if (!cost) { showStatus('원가를 입력해주세요.', false); return; }
 
-    showStatus('상품 정보 조회 중...', true);
+    // 진행 상태 시각화 — 버튼 비활성 + 텍스트 변경 (연타 방지 + 두 번째 클릭도 확실히 인지)
+    const btnCalc = document.getElementById('btn-calc');
+    btnCalc.disabled = true;
+    btnCalc.textContent = '조회 중...';
+    showStatus('상품 정보 조회 중...', true, true);
 
-    let info;
     try {
-      info = await window.api.fetchProductInfo(url);
-    } catch (e) {
-      showStatus('조회 실패: ' + e.message, false);
-      return;
-    }
-    if (!info || info.error) {
-      showStatus(info?.error || '조회 실패', false);
-      return;
-    }
+      let info;
+      try {
+        info = await window.api.fetchProductInfo(url);
+      } catch (e) {
+        showStatus('조회 실패: ' + e.message, false);
+        return;
+      }
+      if (!info || info.error) {
+        showStatus(info?.error || '조회 실패', false);
+        return;
+      }
 
     // 계산 (배송비는 사이즈별 참고값 — 수동 수정 가능)
     const salePrice       = info.salePrice || 0;
@@ -529,10 +582,39 @@
     const commissionNoVat = salePrice * commissionRate / 100;
     const commission      = Math.round(commissionNoVat * 1.1);
     const vat             = Math.round((salePrice - commissionNoVat - cost) * 0.1);
-    const deliveryFee     = SIZE_DELIVERY_FEES[sizeType] ?? 0;
+
+    // categoryId가 있으면 항상 Wing API 호출 (Wing이 단일 출처).
+    // 치수 입력 O → 실측값 사용. 치수 입력 X → 선택된 사이즈의 대표치수 사용.
+    // UI·API 모두 mm·g 단위로 통일 — 변환 불필요.
+    const [w, d, h, g] = dimInputs.map(el => parseFloat(el.value) || 0);
+    const hasDims = w && d && h && g;
+    let finalSizeType = sizeType;
+    let deliveryFee   = SIZE_DELIVERY_FEES[sizeType] ?? 0;
+    let feeSource     = 'local'; // 'wing' | 'local'
+    if (info.categoryId) {
+      btnCalc.textContent = 'Wing 계산 중...';
+      showStatus('Wing 비용계산기 조회 중...', true, true);
+      const apiDims = hasDims
+        ? { length: Math.round(d), width: Math.round(w), height: Math.round(h), weight: Math.round(g) }
+        : (SIZE_REPRESENTATIVE_DIMS[sizeType] ?? SIZE_REPRESENTATIVE_DIMS['극소형']);
+      try {
+        const fee = await window.api.calculateFee({
+          ...apiDims,
+          quantity: 1,
+          kanCategoryId: info.categoryId,
+          amount: String(salePrice || 10000),
+        });
+        if (fee && !fee.error && fee.sizeLabel) {
+          finalSizeType = fee.sizeLabel;
+          deliveryFee   = fee.totalFee;
+          feeSource     = 'wing';
+          sizeSelect.value = fee.sizeLabel;
+        }
+      } catch (e) { /* 폴백 유지 */ }
+    }
 
     // 계산 컨텍스트 저장 (배송비 수동 수정 시 즉시 재계산용)
-    lastCalc = { salePrice, commissionRate, commission, vat, cost, extraCost, sizeType };
+    lastCalc = { salePrice, commissionRate, commission, vat, cost, extraCost, sizeType: finalSizeType, feeSource, autoDelivery: deliveryFee };
 
     // 상품명 & 카테고리
     const nameEl = document.getElementById('result-product-name');
@@ -547,7 +629,7 @@
 
     setVal('val-sale-price',      fmt(salePrice),            '');
     setVal('val-vat',             fmt(vat),                  '');
-    setVal('val-size',            sizeType,                  '');
+    setVal('val-size',            finalSizeType + (feeSource === 'wing' ? ' · Wing' : ''), '');
     setVal('val-commission-rate', fmtPct(commissionRate),    '');
     setVal('val-commission',      fmt(commission),           '');
     setVal('val-cost',            fmt(cost),                 '');
@@ -578,6 +660,10 @@
     setVal('val-brand',       brandName, '');
 
     showStatus('계산 완료!', true);
+    } finally {
+      btnCalc.disabled = false;
+      btnCalc.textContent = '계산하기';
+    }
   }
 
   /* ——————————————————————————————————————————
@@ -607,14 +693,17 @@
      STATUS BAR
   —————————————————————————————————————————— */
   let statusTimer = null;
-  function showStatus(msg, success) {
+  function showStatus(msg, success, persist) {
     const bar = document.getElementById('status-bar');
     const icon = bar.querySelector('.status-icon');
     document.getElementById('status-text').textContent = msg;
-    icon.textContent = success ? '✅' : '⚠️';
+    icon.textContent = persist ? '⏳' : (success ? '✅' : '⚠️');
     bar.classList.add('visible');
     clearTimeout(statusTimer);
-    statusTimer = setTimeout(() => bar.classList.remove('visible'), 3000);
+    // persist=true면 자동 숨김 끔 (진행 중 상태 표시용)
+    if (!persist) {
+      statusTimer = setTimeout(() => bar.classList.remove('visible'), 3000);
+    }
   }
 
   /* ——————————————————————————————————————————
@@ -775,6 +864,13 @@
     } catch (e) {
       showStatus('로그인 창 열기 실패: ' + e.message, false);
     }
+  });
+
+  // Wing 공식 계산기 링크 — 외부 브라우저로 열어 실납부액(프로모션 반영) 확인
+  document.getElementById('link-wing-calc')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const url = 'https://wing.coupang.com/tenants/rfm/settlements/fee-details#warehousing-and-fulfillment-fee';
+    window.api?.openExternal?.(url);
   });
 
 })();

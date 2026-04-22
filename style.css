@@ -454,6 +454,12 @@ body::before {
 }
 
 .btn:active { transform: translateY(1px); }
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  pointer-events: none;
+}
 
 .btn-login {
   background: var(--btn-secondary-bg);
@@ -673,6 +679,27 @@ input.value-box.editable.edited {
   z-index: 1000;
   box-shadow: var(--shadow-tooltip);
   pointer-events: none;
+}
+
+/* Wing 공식 계산기 링크 — ⓘ 옆에 부연 */
+.wing-calc-link {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-indigo);
+  text-decoration: none;
+  padding: 1px 6px;
+  border: 1px solid var(--tint-indigo-border);
+  border-radius: 4px;
+  background: var(--tint-indigo-bg);
+  vertical-align: middle;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.wing-calc-link:hover {
+  background: var(--accent-indigo);
+  color: #fff;
+  text-decoration: none;
 }
 
 /* Result rows — 3 items per row */

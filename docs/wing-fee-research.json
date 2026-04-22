@@ -1,0 +1,64 @@
+{
+  "source": "Wing fee-details 계산기 API (/tenants/rfm/api/accounting/revamp/*)",
+  "captured_at": "2026-04-22",
+  "baseTime_tested": 1782864000000,
+  "findings": {
+    "official_base_fees_by_size": {
+      "극소형": { "capacityType": "MINI", "warehouse": 1650, "shipping": 2200, "total": 3850 },
+      "소형":   { "capacityType": "SMALL", "warehouse": 1750, "shipping": 2400, "total": 4150 },
+      "중형":   { "capacityType": "MEDIUM", "warehouse": 2000, "shipping": 3000, "total": 5000 },
+      "대형1":  { "capacityType": "LARGE1", "warehouse": 2400, "shipping": 4000, "total": 6400 },
+      "대형2":  { "capacityType": "LARGE2", "warehouse": 2400, "shipping": 5500, "total": 7900 },
+      "특대형": { "capacityType": "XLARGE", "warehouse": 2400, "shipping": 9500, "total": 11900 }
+    },
+    "independence_tests": {
+      "price_independent": "판매가 5000~100000원에서 기본값 동일 (극소형 기준 1650/2200 고정)",
+      "category_independent_for_base": "의류 카테고리 내 모든 서브카테고리(kanCategoryId 스캔 33개) 기본값 동일. 카테고리·판매가는 프로모션/할인 단계에서만 반영됨"
+    },
+    "currently_active_promotion": {
+      "rate": "100%",
+      "effect": "현재 프로모션으로 finalTotalAmount = 0 (전액 할인). 실제 납부액은 프로모션 종료 후부터 기본값 기준 과금",
+      "note": "상품 판매 후 반품 시 입출고/배송비 전액 환불 프로모션 진행 중 (2026-04-22 확인 시점)"
+    }
+  },
+  "endpoints": {
+    "capacity_classify": {
+      "method": "POST",
+      "path": "/tenants/rfm/api/accounting/revamp/vendor-item-capacity-type-by-quantity",
+      "body": { "length": "mm", "width": "mm", "height": "mm", "weight": "g", "quantity": "int" },
+      "response": "plain string — MINI | SMALL | MEDIUM | LARGE1 | LARGE2 | XLARGE"
+    },
+    "warehousing_fee": {
+      "method": "POST",
+      "path": "/tenants/rfm/api/accounting/revamp/warehousing-fee",
+      "body": { "agreementScope": "PRODUCTION", "capacityType": "MINI|...", "kanCategoryId": "int", "amount": "판매가 string", "length": "mm", "width": "mm", "height": "mm", "weight": "g", "quantity": "int", "baseTime": "epoch ms" },
+      "response_fields": {
+        "calculatedFeeDetails.promotionDetails.totalDefaultDiscountAmount.amount": "프로모션/할인 전 기본가 ⭐",
+        "calculatedFeeDetails.finalTotalAmountWithDefaultDiscount.amount": "저가할인 적용 후",
+        "calculatedFeeDetails.finalTotalAmount.amount": "프로모션까지 적용된 최종 납부액"
+      }
+    },
+    "fulfillment_fee": {
+      "method": "POST",
+      "path": "/tenants/rfm/api/accounting/revamp/fulfillment-fee",
+      "body": "warehousing-fee와 동일",
+      "response": "warehousing-fee와 동일 구조 — 값만 배송비"
+    }
+  },
+  "auth": {
+    "cookie": "XSRF-TOKEN 쿠키 필수",
+    "header": "x-xsrf-token: <decoded XSRF-TOKEN>",
+    "session": "Wing 로그인 필수. Cookie는 브라우저 컨텍스트에서 자동 전송"
+  },
+  "capacity_boundaries": {
+    "size_by_sum_of_three_sides_and_weight": {
+      "극소형": { "sum_cm_max": 80, "weight_kg_max": 2 },
+      "소형":   { "sum_cm_max": 100, "weight_kg_max": 5 },
+      "중형":   { "sum_cm_max": 120, "weight_kg_max": 10 },
+      "대형1":  { "sum_cm_max": 140, "weight_kg_max": 15 },
+      "대형2":  { "sum_cm_max": 160, "weight_kg_max": 20 },
+      "특대형": { "sum_cm_max": 250, "weight_kg_max": 30 }
+    },
+    "rule": "세변의 합과 무게 중 더 큰 등급이 최종 사이즈. 초과 시 상위 사이즈로 분류. 250cm 또는 30kg 초과 시 입고 불가."
+  }
+}
