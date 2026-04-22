@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename)
 
 let mainWindow = null
 let loginWindow = null
+let scraperWindow = null
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -161,6 +162,47 @@ async function callWingAPI(jsExpression) {
   }
 }
 
+// 쿠팡 공개 상품 페이지에서 실제 할인가(finalPrice) 스크레이프.
+// 숨김 BrowserWindow에서 www.coupang.com 먼저 열어 쿠키 확보 후 fetch(credentials: include).
+// schema.org JSON-LD 구조화 데이터 regex로 finalPrice/originalPrice 추출.
+async function getScraperWindow() {
+  if (scraperWindow && !scraperWindow.isDestroyed()) return scraperWindow
+  scraperWindow = new BrowserWindow({
+    width: 400, height: 300, show: false,
+    webPreferences: { contextIsolation: true },
+  })
+  await new Promise((resolve) => {
+    scraperWindow.webContents.once('did-finish-load', resolve)
+    scraperWindow.loadURL('https://www.coupang.com')
+  })
+  scraperWindow.on('closed', () => { scraperWindow = null })
+  return scraperWindow
+}
+
+async function fetchCoupangPrice(url) {
+  try {
+    const win = await getScraperWindow()
+    const result = await win.webContents.executeJavaScript(`
+      (async () => {
+        try {
+          const r = await fetch(${JSON.stringify(url)}, { credentials: 'include', signal: AbortSignal.timeout(10000) });
+          if (!r.ok) return { error: 'HTTP_' + r.status };
+          const html = await r.text();
+          const finalM = html.match(/"@type":"Offer","price":"(\\d+)"/);
+          const origM  = html.match(/"price":"(\\d+)","priceType":"https:\\/\\/schema\\.org\\/StrikethroughPrice"/);
+          return {
+            finalPrice: finalM ? parseInt(finalM[1]) : null,
+            originalPrice: origM ? parseInt(origM[1]) : null,
+          };
+        } catch(e) { return { error: e.message }; }
+      })()
+    `)
+    return result
+  } catch (e) {
+    return { error: e.message }
+  }
+}
+
 // ── IPC 핸들러 ──
 
 ipcMain.handle('open-coupang-login', async () => {
@@ -238,9 +280,21 @@ ipcMain.handle('fetch-product-info', async (_, url) => {
       lookupCommissionRate(matched.productName || '') ||
       10.8
 
+    // 판매가: 쿠팡 상품 페이지 schema.org finalPrice(실제 고객 결제가) 우선, 실패 시 Wing salePrice(정상가) 폴백.
+    // Wing salePrice는 판매자 등록 기본가 → 할인 반영 안 됨 → 마진 과대추정 발생 가능.
+    const wingSalePrice = matched.salePrice || 0
+    let salePrice = wingSalePrice
+    let priceSource = 'wing_salePrice'
+    let originalPrice = null
+    const scraped = await fetchCoupangPrice(url)
+    if (scraped && !scraped.error && scraped.finalPrice) {
+      salePrice = scraped.finalPrice
+      originalPrice = scraped.originalPrice
+      priceSource = 'coupang_finalPrice'
+    }
+
     // 28일 매출 추정 (판매수 × 판매가)
     const salesLast28d = matched.salesLast28d || 0
-    const salePrice = matched.salePrice || 0
     const revenueLast28d = salesLast28d * salePrice
 
     return {
@@ -248,6 +302,8 @@ ipcMain.handle('fetch-product-info', async (_, url) => {
       categoryPath: categoryPath || '',
       categoryId: matched.categoryId,
       salePrice,
+      originalPrice,
+      priceSource,
       commissionRate,
       productId: matched.productId,
       itemId: matched.itemId,

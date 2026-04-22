@@ -1,6 +1,6 @@
 {
   "name": "gomargin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "쿠팡 마진 계산기",
   "main": "main.js",
   "type": "module",
