@@ -26,7 +26,7 @@
        TITLEBAR
        ============================================================ -->
   <div id="titlebar">
-    <span id="titlebar-title"><span class="titlebar-logo">🚀</span> 고야 마진 계산기</span>
+    <span id="titlebar-title"><span class="titlebar-logo">🚀</span> 고야 마진 계산기 <span id="app-version"></span></span>
     <div id="titlebar-right">
       <select id="zoom-select" title="화면 배율">
         <option value="100" selected>100%</option>
@@ -149,12 +149,11 @@
         </div>
         <div class="result-item">
           <span class="result-label">
-            쿠팡-입출고배송비(부가세포함)
-            <span class="label-info" tabindex="0"
-                  data-tip="로켓그로스 입출고배송비 = 입출고비(수량 당) + 배송비(주문 당). 치수·무게를 모두 입력하면 Wing 공식 계산기 API를 호출해 정확한 값을 가져옵니다(사이즈 옆에 · Wing 표시). 치수 미입력 시 사이즈표 기본값(극소형 3,850원 → 특대형 11,900원, 2025.1.6 개편 기준)으로 폴백. ※ 이 값은 할인·프로모션 전 기본 요율이므로, 현재 진행 중인 프로모션 할인은 반영되지 않습니다. 현재 실납부액은 Wing 계산기(fee-details)에서 직접 확인해주세요. ⓘ 클릭 시 상세표·출처 확인."
-                  data-modal="delivery">ⓘ</span>
             <a href="#" class="wing-calc-link" id="link-wing-calc"
-               title="Wing 공식 계산기 열기 (실납부액 확인용)">🧮 Wing 계산기</a>
+               title="클릭 시 Wing 공식 계산기 열기 (실납부액 확인용)">쿠팡-입출고배송비(부가세포함)</a>
+            <span class="label-info" tabindex="0"
+                  data-tip="로켓그로스 입출고배송비 = 입출고비(수량 당) + 배송비(주문 당). 치수·무게를 모두 입력하면 Wing 공식 계산기 API를 호출해 정확한 값을 가져옵니다(사이즈 옆에 · Wing 표시). 치수 미입력 시 사이즈표 기본값(극소형 3,850원 → 특대형 11,900원, 2025.1.6 개편 기준)으로 폴백. ※ 이 값은 할인·프로모션 전 기본 요율이므로, 현재 진행 중인 프로모션 할인은 반영되지 않습니다. 현재 실납부액은 라벨을 클릭해 Wing 계산기에서 직접 확인해주세요. ⓘ 클릭 시 상세표·출처 확인."
+                  data-modal="delivery">ⓘ</span>
           </span>
           <input type="text" inputmode="numeric" class="value-box dash editable" id="val-delivery" value="—" />
         </div>
@@ -872,6 +871,11 @@
     const url = 'https://wing.coupang.com/tenants/rfm/settlements/fee-details#warehousing-and-fulfillment-fee';
     window.api?.openExternal?.(url);
   });
+
+  window.api?.getAppVersion?.().then(v => {
+    const el = document.getElementById('app-version');
+    if (el && v) el.textContent = 'v' + v;
+  }).catch(() => {});
 
 })();
 </script>

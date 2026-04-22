@@ -391,6 +391,8 @@ ipcMain.handle('window-zoom', (_, factor) => {
   mainWindow.webContents.setZoomFactor(f)
 })
 
+ipcMain.handle('get-app-version', () => app.getVersion())
+
 // ── 앱 초기화 ──
 
 app.whenReady().then(() => {

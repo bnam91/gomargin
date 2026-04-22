@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('api', {
   windowClose:      ()       => ipcRenderer.invoke('window-close'),
   windowZoom:       (factor) => ipcRenderer.invoke('window-zoom', factor),
   openExternal:     (url)    => ipcRenderer.invoke('open-external', url),
+  getAppVersion:    ()       => ipcRenderer.invoke('get-app-version'),
 })
